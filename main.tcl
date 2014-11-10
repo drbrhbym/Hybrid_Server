@@ -1,8 +1,10 @@
+#!/usr/bin/wish
 set appPath [file normalize [info script]]
 if {[file type $appPath] == "link"} {set appPath [file readlink $appPath]}
 set appPath [file dirname $appPath]
 
-lappend ::auto_path [file join $appPath lib]
+set ::auto_path [linsert $::auto_path 0 [file join $appPath lib]]
+#lappend ::auto_path [file join $appPath lib]
 package require Tk
 package require tile
 package require netsnmptcl
@@ -136,7 +138,7 @@ proc start_server {} {
 		tk_messageBox -message $ret -icon error
 		return 0
 	}
-	fconfigure $::server -buffering none -translation binary -encoding binary
+	fconfigure $::server -buffering full -buffersize 2000 -translation binary -encoding binary
 	fileevent $::server readable [list parse $::server]
 	return 1
 }
@@ -166,3 +168,4 @@ proc log_msg {msg {status default}} {
 		}
 	}
 }
+show_ver

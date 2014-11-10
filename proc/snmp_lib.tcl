@@ -129,20 +129,45 @@ proc ::asn::GetFullTag {tag class constr} {
 #=========================================
 proc ::snmp::decode_snmp_packet {data ver comm type id vbind } {
 	variable PDU_TYPE
-	upvar $ver myver $comm mycomm $type mytype $vbind myvbind $id myid
-	::asn::asnGetSequence data data
+	upvar $ver myver $comm mycomm $type mytype $vbind myvbind $id myid	
+	set rawdata $data
+	if [catch {::asn::asnGetSequence data data} ret] {
+		show_err_message "decode_snmp_packet 01\n"
+		show_err_message "[showhex $rawdata]"
+		show_err_message "$ret \n"
+		return -1
+	}
 	# snmp version
-	::asn::asnGetInteger data myver
+	set rawdata $data
+	if [catch {::asn::asnGetInteger data myver} ret] {
+		show_err_message "decode_snmp_packet 02\n"
+		show_err_message "[showhex $rawdata]"
+		show_err_message "$ret \n"
+		return -1
+	}
+
 	# snmp community
-	::asn::asnGetOctetString data mycomm
+	set rawdata $data
+	if [catch {::asn::asnGetOctetString data mycomm} ret] {
+		show_err_message "decode_snmp_packet 03\n"
+		show_err_message "[showhex $rawdata]"
+		show_err_message "$ret \n"
+		return -1
+	}
+	
 	# snmp method type
-	::asn::asnGetContext data mytype
-	# ::asn::asnGetContext data tag
-	# set mytype $PDU_TYPE([expr 0xA0|$tag])	
-	::asn::asnGetInteger data myid
-	::asn::asnGetInteger data err
-	::asn::asnGetInteger data err_ind	
-	::asn::asnGetSequence data data
+	set rawdata $data
+	if [catch {
+		::asn::asnGetContext data mytype
+		::asn::asnGetInteger data myid
+		::asn::asnGetInteger data err
+		::asn::asnGetInteger data err_ind	
+		::asn::asnGetSequence data data
+	} ret] {
+		show_err_message "decode_snmp_packet 04\n"
+		show_err_message "[showhex $rawdata]"
+		show_err_message "$ret \n"
+	}
 	# VBind data(s)
 	set myvbind $data
 	return $err

@@ -1,8 +1,9 @@
 proc parse {sock} {
 	#fconfigure $sock -buffering none -translation binary -encoding binary
 	set data [read  $sock]
+	flush $sock
 	foreach {host port} [udp_conf $sock -peer] {}
-	fconfigure $sock -buffering none -translation binary -encoding binary -remote [list $host $port]
+	fconfigure $sock -remote [list $host $port]
 	if [snmp_inform_response $host $sock flow comm mac euro $data] {
 		switch $flow {
 			15 {
@@ -121,8 +122,12 @@ proc snmp_inform_response {host sock  flow_ptr comm_ptr mac_ptr eu_ptr data} {
 	#set data [read $sock]
 	#binary scan $data H* zzz
 	#puts  zzz=$zzz
-	::snmp::decode_snmp_packet $data ver comm pdutype id vbinds
+	if {[::snmp::decode_snmp_packet $data ver comm pdutype id vbinds]<0} {
+		log_msg "\t::snmp::decode_snmp_packet fail\n" error
+		return 0
+	}
 	# puts "ver=$ver comm=$comm pdutype=$pdutype"
+	# snmpv2c (ver=1) inform (pdutype=6)
 	if {($ver!=1)||($pdutype!=6)} {return 0}
 	#vBind data
 	# snmp_inform vBind data format
@@ -163,6 +168,7 @@ proc snmp_inform_response {host sock  flow_ptr comm_ptr mac_ptr eu_ptr data} {
 	# set newdata $temp
 	set newdata [::snmp::encode_snmp_packet $ver $comm 2 $id $vbinds]
 	puts -nonewline $sock $newdata
+	flush $sock
 	return 1
 }
 
@@ -217,4 +223,42 @@ proc parseProvisioningStatus {data host} {
 		"6" {log_msg "\tfailureInternalError(6)\n" error}
 		"7" {log_msg "\tfailureOtherReason(7)\n" error}
 	}
+}
+
+proc showhex {val} {
+	binary scan $val H* hex
+	append ret "leng=[string length $val]\n"
+	append ret "[string range $hex 0 8]...\n"
+	return $ret
+}
+
+proc show_ver {} {
+
+	append ret "tcl_version=$::tcl_version\n"
+	append ret "asn_ver=[package present asn]\n"
+	append ret "udp_ver=[package present udp]\n"
+	append ret "OS=$::tcl_platform(os)-$::tcl_platform(osVersion)\n"
+	append ret "machine=$::tcl_platform(machine)\n"
+	append ret "platform=$::tcl_platform(platform)\n"
+	return $ret
+#	osVersion pointerSize byteOrder threaded machine platform pathSeparator os user wordSize
+}
+
+proc show_err_message {msg} {
+	if {![winfo exist .err]} {
+		toplevel .err
+		text .err.log		
+		::ttk::scrollbar .err.sv -orient vertical -command [list .err.log yview]
+		.err.log configure -yscrollcommand [list .err.sv set]	
+		grid .err.log -row 0 -column 0 -sticky news
+		grid .err.sv  -row 0 -column 1 -sticky ns
+		grid rowconfigure .err 0 -weight 1
+		.err.log insert end "tcl_version=$::tcl_version\n"
+		.err.log insert end "asn_ver=[package present asn]\n"
+		.err.log insert end "udp_ver=[package present udp]\n"
+		.err.log insert end "OS=$::tcl_platform(os)-$::tcl_platform(osVersion)\n"
+		.err.log insert end "machine=$::tcl_platform(machine)\n"
+		.err.log insert end "platform=$::tcl_platform(platform)\n"
+	}
+	.err.log insert end $msg
 }
